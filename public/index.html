@@ -1,0 +1,376 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Asset Manager — TechCore Solutions</title>
+<style>
+  :root { --bg:#0f1115; --panel:#171a21; --panel2:#1e222c; --line:#2a2f3a;
+    --text:#e8eaf0; --muted:#9aa3b2; --accent:#4f8cff; --green:#3fb950;
+    --amber:#d29922; --red:#f85149; --radius:10px; }
+  * { box-sizing:border-box; margin:0; padding:0; }
+  body { background:var(--bg); color:var(--text); font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif; }
+  header { padding:18px 28px; border-bottom:1px solid var(--line); display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; }
+  header h1 { font-size:20px; }
+  header h1 span { color:var(--accent); }
+  header p { color:var(--muted); font-size:13px; }
+  nav { display:flex; gap:6px; padding:12px 28px; border-bottom:1px solid var(--line); flex-wrap:wrap; }
+  nav button { background:var(--panel); color:var(--text); border:1px solid var(--line); border-radius:8px; padding:8px 14px; cursor:pointer; font-size:14px; }
+  nav button.active { background:var(--accent); border-color:var(--accent); color:#fff; }
+  main { padding:20px 28px 40px; max-width:1200px; margin:0 auto; }
+  .tab { display:none; } .tab.active { display:block; }
+  .cards { display:grid; grid-template-columns:repeat(auto-fit,minmax(160px,1fr)); gap:12px; margin-bottom:20px; }
+  .card { background:var(--panel); border:1px solid var(--line); border-radius:var(--radius); padding:16px; }
+  .card .num { font-size:28px; font-weight:700; }
+  .card .lbl { color:var(--muted); font-size:13px; margin-top:2px; }
+  .card.warn .num { color:var(--amber); } .card.bad .num { color:var(--red); } .card.good .num { color:var(--green); }
+  .panel { background:var(--panel); border:1px solid var(--line); border-radius:var(--radius); padding:16px; margin-bottom:20px; }
+  .panel h2 { font-size:16px; margin-bottom:12px; }
+  table { width:100%; border-collapse:collapse; font-size:14px; }
+  th, td { text-align:left; padding:9px 10px; border-bottom:1px solid var(--line); vertical-align:top; }
+  th { color:var(--muted); font-weight:600; font-size:12px; text-transform:uppercase; letter-spacing:.4px; }
+  tr:hover td { background:var(--panel2); }
+  .badge { display:inline-block; padding:2px 8px; border-radius:20px; font-size:12px; font-weight:600; }
+  .b-available,.b-low { background:#1f3d2b; color:#7ee787; }
+  .b-assigned { background:#1d3350; color:#79b8ff; }
+  .b-in_maintenance,.b-medium { background:#4a3a12; color:#e3b341; }
+  .b-retired,.b-high { background:#4d1f1f; color:#ff7b72; }
+  .b-returned { background:#2a2f3a; color:var(--muted); }
+  .b-overdue { background:#4d1f1f; color:#ff7b72; }
+  .b-vehicle { background:#2d1f4d; color:#d2a8ff; } .b-laptop { background:#1d3350; color:#79b8ff; }
+  .b-phone { background:#173b2e; color:#56d364; } .b-equipment { background:#3d2a12; color:#e8a33d; }
+  form.grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); gap:10px; }
+  label { display:block; font-size:12px; color:var(--muted); margin-bottom:4px; }
+  input, select, textarea { width:100%; background:var(--bg); color:var(--text); border:1px solid var(--line); border-radius:8px; padding:9px 10px; font-size:14px; }
+  button.primary { background:var(--accent); color:#fff; border:0; border-radius:8px; padding:10px 16px; cursor:pointer; font-size:14px; font-weight:600; }
+  button.ghost { background:transparent; color:var(--text); border:1px solid var(--line); border-radius:8px; padding:6px 10px; cursor:pointer; font-size:13px; }
+  button.danger { background:transparent; color:var(--red); border:1px solid #5a2a2a; border-radius:8px; padding:6px 10px; cursor:pointer; font-size:13px; }
+  .row { display:flex; gap:10px; align-items:end; flex-wrap:wrap; }
+  .row .grow { flex:1; min-width:160px; }
+  .muted { color:var(--muted); font-size:13px; }
+  .toast { position:fixed; bottom:20px; right:20px; background:var(--panel2); border:1px solid var(--line); border-left:4px solid var(--green); padding:12px 16px; border-radius:8px; display:none; z-index:50; }
+  .toast.err { border-left-color:var(--red); }
+  .two { display:grid; grid-template-columns:1fr 1fr; gap:20px; }
+  @media (max-width:800px){ .two{grid-template-columns:1fr;} main{padding:14px;} }
+</style>
+</head>
+<body>
+<header>
+  <div><h1>Asset Manager <span>· TechCore Solutions</span></h1><p>assets · employees · assignments · returns · maintenance · audit history · maintenance prediction</p></div>
+  <div class="muted" id="clock"></div>
+</header>
+<nav id="tabs">
+  <button data-tab="dashboard" class="active">Dashboard</button>
+  <button data-tab="assets">Assets</button>
+  <button data-tab="employees">Employees</button>
+  <button data-tab="assignments">Assignments &amp; Returns</button>
+  <button data-tab="maintenance">Maintenance</button>
+  <button data-tab="predictions">Predictions</button>
+  <button data-tab="audit">Audit Log</button>
+</nav>
+<main>
+  <!-- DASHBOARD -->
+  <section class="tab active" id="tab-dashboard">
+    <div class="cards" id="statCards"></div>
+    <div class="two">
+      <div class="panel"><h2>Maintenance due soon (predicted)</h2><div id="dueSoon"></div></div>
+      <div class="panel"><h2>Overdue returns</h2><div id="overdueList"></div></div>
+    </div>
+    <div class="panel"><h2>Recent audit activity</h2><div id="recentAudit"></div></div>
+  </section>
+
+  <!-- ASSETS -->
+  <section class="tab" id="tab-assets">
+    <div class="panel">
+      <h2 id="assetFormTitle">Add asset</h2>
+      <form class="grid" id="assetForm">
+        <input type="hidden" id="af-id">
+        <div><label>Asset tag *</label><input id="af-tag" required placeholder="AST-LAP-008"></div>
+        <div><label>Name *</label><input id="af-name" required placeholder="Dell Latitude 5540"></div>
+        <div><label>Category *</label><select id="af-cat"><option value="laptop">Laptop</option><option value="phone">Phone</option><option value="vehicle">Vehicle</option><option value="equipment">Equipment</option></select></div>
+        <div><label>Brand</label><input id="af-brand"></div>
+        <div><label>Model</label><input id="af-model"></div>
+        <div><label>Serial no</label><input id="af-serial"></div>
+        <div><label>Purchase date *</label><input id="af-pdate" type="date" required></div>
+        <div><label>Purchase cost (₹)</label><input id="af-cost" type="number" min="0" step="1"></div>
+        <div><label>Status</label><select id="af-status"><option>available</option><option>assigned</option><option>in_maintenance</option><option>retired</option></select></div>
+        <div><label>Location</label><input id="af-loc" placeholder="Hyderabad HQ"></div>
+        <div><label>Usage hours</label><input id="af-hours" type="number" min="0" step="1"></div>
+        <div><label>Condition</label><select id="af-cond"><option>excellent</option><option selected>good</option><option>fair</option><option>poor</option></select></div>
+        <div><label>Notes</label><input id="af-notes"></div>
+      </form>
+      <div class="row" style="margin-top:12px"><button class="primary" onclick="saveAsset()">Save asset</button><button class="ghost" onclick="resetAssetForm()">Clear</button></div>
+    </div>
+    <div class="panel">
+      <div class="row" style="margin-bottom:12px">
+        <div class="grow"><input id="assetSearch" placeholder="Search name, tag, brand, serial…" oninput="loadAssets()"></div>
+        <select id="assetCatFilter" onchange="loadAssets()"><option value="">All categories</option><option value="laptop">Laptop</option><option value="phone">Phone</option><option value="vehicle">Vehicle</option><option value="equipment">Equipment</option></select>
+        <select id="assetStatusFilter" onchange="loadAssets()"><option value="">All statuses</option><option value="available">Available</option><option value="assigned">Assigned</option><option value="in_maintenance">In maintenance</option><option value="retired">Retired</option></select>
+      </div>
+      <div style="overflow-x:auto"><table><thead><tr><th>Tag</th><th>Asset</th><th>Category</th><th>Purchase</th><th>Cost</th><th>Status</th><th>Assigned to</th><th>Condition</th><th></th></tr></thead><tbody id="assetRows"></tbody></table></div>
+    </div>
+  </section>
+
+  <!-- EMPLOYEES -->
+  <section class="tab" id="tab-employees">
+    <div class="panel">
+      <h2>Add employee</h2>
+      <form class="grid" id="empForm">
+        <div><label>Name *</label><input id="ef-name" required></div>
+        <div><label>Email *</label><input id="ef-email" type="email" required></div>
+        <div><label>Department *</label><input id="ef-dept" required placeholder="Engineering"></div>
+        <div><label>Role</label><input id="ef-role"></div>
+        <div><label>Phone</label><input id="ef-phone"></div>
+        <div><label>Joined date *</label><input id="ef-joined" type="date" required></div>
+      </form>
+      <div class="row" style="margin-top:12px"><button class="primary" onclick="saveEmployee()">Save employee</button></div>
+    </div>
+    <div class="panel"><table><thead><tr><th>Name</th><th>Email</th><th>Department</th><th>Role</th><th>Phone</th><th>Joined</th><th></th></tr></thead><tbody id="empRows"></tbody></table></div>
+  </section>
+
+  <!-- ASSIGNMENTS -->
+  <section class="tab" id="tab-assignments">
+    <div class="panel">
+      <h2>Assign an asset</h2>
+      <form class="grid" id="assignForm">
+        <div><label>Asset (available only) *</label><select id="as-asset"></select></div>
+        <div><label>Employee *</label><select id="as-emp"></select></div>
+        <div><label>Assigned date *</label><input id="as-date" type="date" required></div>
+        <div><label>Expected return date</label><input id="as-return" type="date"></div>
+        <div><label>Notes</label><input id="as-notes"></div>
+      </form>
+      <div class="row" style="margin-top:12px"><button class="primary" onclick="saveAssignment()">Assign</button></div>
+    </div>
+    <div class="panel"><h2>Active assignments</h2><table><thead><tr><th>Asset</th><th>Employee</th><th>Assigned</th><th>Expected return</th><th>Status</th><th></th></tr></thead><tbody id="activeAssignRows"></tbody></table></div>
+    <div class="panel"><h2>Return history</h2><table><thead><tr><th>Asset</th><th>Employee</th><th>Return date</th><th>Condition</th><th>Notes</th></tr></thead><tbody id="returnRows"></tbody></table></div>
+  </section>
+
+  <!-- MAINTENANCE -->
+  <section class="tab" id="tab-maintenance">
+    <div class="panel">
+      <h2>Log maintenance</h2>
+      <form class="grid" id="maintForm">
+        <div><label>Asset *</label><select id="mf-asset"></select></div>
+        <div><label>Date *</label><input id="mf-date" type="date" required></div>
+        <div><label>Type *</label><select id="mf-type"><option value="preventive">Preventive</option><option value="corrective">Corrective</option></select></div>
+        <div><label>Cost (₹)</label><input id="mf-cost" type="number" min="0" step="1"></div>
+        <div><label>Performed by</label><input id="mf-by" placeholder="IT Support"></div>
+        <div><label>Next due date</label><input id="mf-next" type="date"></div>
+        <div style="grid-column:1/-1"><label>Description *</label><input id="mf-desc" required placeholder="What was done"></div>
+      </form>
+      <div class="row" style="margin-top:12px"><button class="primary" onclick="saveMaintenance()">Log maintenance</button></div>
+    </div>
+    <div class="panel"><h2>Maintenance history</h2><table><thead><tr><th>Asset</th><th>Date</th><th>Type</th><th>Description</th><th>Cost</th><th>By</th><th>Next due</th></tr></thead><tbody id="maintRows"></tbody></table></div>
+  </section>
+
+  <!-- PREDICTIONS -->
+  <section class="tab" id="tab-predictions">
+    <div class="panel"><h2>Maintenance prediction — how it works</h2>
+      <p class="muted">A ridge regression model (numpy) trains on this database's own maintenance history: for every pair of consecutive services it learns how asset age, time since last service, service count and category predict the gap to the next service. The model then predicts each asset's next service date. <span id="modelInfo"></span></p>
+    </div>
+    <div class="panel"><table><thead><tr><th>Asset</th><th>Category</th><th>Last service</th><th>Predicted next</th><th>Days left</th><th>Risk</th><th>Score</th></tr></thead><tbody id="predRows"></tbody></table></div>
+  </section>
+
+  <!-- AUDIT -->
+  <section class="tab" id="tab-audit">
+    <div class="panel">
+      <div class="row" style="margin-bottom:12px">
+        <select id="auditFilter" onchange="loadAudit()"><option value="">All entities</option><option value="asset">Assets</option><option value="employee">Employees</option><option value="assignment">Assignments</option><option value="return">Returns</option><option value="maintenance">Maintenance</option></select>
+        <button class="ghost" onclick="loadAudit()">Refresh</button>
+      </div>
+      <table><thead><tr><th>Time</th><th>Entity</th><th>Action</th><th>Details</th></tr></thead><tbody id="auditRows"></tbody></table>
+    </div>
+  </section>
+</main>
+<div class="toast" id="toast"></div>
+<script>
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+async function api(path, method='GET', body){
+  const r = await fetch(path, {method, headers:{'Content-Type':'application/json'}, body: body ? JSON.stringify(body) : undefined});
+  const j = await r.json().catch(()=>({}));
+  if(!r.ok) throw new Error(j.error || ('HTTP ' + r.status));
+  return j;
+}
+function toast(msg, isErr){
+  const t = $('toast'); t.textContent = msg; t.className = 'toast' + (isErr ? ' err' : ''); t.style.display='block';
+  setTimeout(()=> t.style.display='none', 3500);
+}
+const todayISO = () => new Date().toISOString().slice(0,10);
+const inr = n => '₹' + Number(n||0).toLocaleString('en-IN');
+const badge = (cls, txt) => '<span class="badge b-' + cls + '">' + esc(txt) + '</span>';
+
+// tabs
+document.querySelectorAll('#tabs button').forEach(b => b.onclick = () => {
+  document.querySelectorAll('#tabs button').forEach(x => x.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(x => x.classList.remove('active'));
+  b.classList.add('active'); $('tab-' + b.dataset.tab).classList.add('active');
+  if(b.dataset.tab === 'assignments') loadAssignmentsTab();
+  if(b.dataset.tab === 'maintenance') loadMaintenanceTab();
+  if(b.dataset.tab === 'predictions') loadPredictions();
+  if(b.dataset.tab === 'audit') loadAudit();
+  if(b.dataset.tab === 'assets') loadAssets();
+  if(b.dataset.tab === 'employees') loadEmployees();
+});
+
+// dashboard
+async function loadDashboard(){
+  const s = await api('/api/stats');
+  $('statCards').innerHTML =
+    card(s.total_assets, 'Total assets') + card(s.available, 'Available', 'good') +
+    card(s.assigned, 'Assigned') + card(s.in_maintenance, 'In maintenance', 'warn') +
+    card(s.overdue_returns, 'Overdue returns', s.overdue_returns ? 'bad' : 'good') +
+    card(s.maintenance_due_soon, 'Maintenance due soon', s.maintenance_due_soon ? 'bad' : 'good') +
+    card(s.total_employees, 'Employees') + card(inr(s.total_maintenance_cost), 'Maintenance spend');
+  const preds = (await api('/api/predictions')).predictions.filter(p => p.risk_level === 'high');
+  $('dueSoon').innerHTML = preds.length ? '<table><thead><tr><th>Asset</th><th>Predicted next</th><th>Days left</th></tr></thead><tbody>' +
+    preds.slice(0,6).map(p => '<tr><td>' + esc(p.asset_tag) + ' — ' + esc(p.name) + '</td><td>' + esc(p.predicted_next_maintenance) + '</td><td>' + p.days_remaining + '</td></tr>').join('') + '</tbody></table>' : '<p class="muted">Nothing high risk right now.</p>';
+  const od = await api('/api/assignments?status=overdue');
+  $('overdueList').innerHTML = od.length ? '<table><thead><tr><th>Asset</th><th>Employee</th><th>Was due</th></tr></thead><tbody>' +
+    od.map(a => '<tr><td>' + esc(a.asset_tag) + ' — ' + esc(a.asset_name) + '</td><td>' + esc(a.employee_name) + '</td><td>' + esc(a.expected_return_date) + '</td></tr>').join('') + '</tbody></table>' : '<p class="muted">No overdue returns.</p>';
+  const au = await api('/api/audit?limit=8');
+  $('recentAudit').innerHTML = '<table><thead><tr><th>Time</th><th>Entity</th><th>Action</th><th>Details</th></tr></thead><tbody>' +
+    au.map(a => '<tr><td>' + esc(a.created_at) + '</td><td>' + esc(a.entity_type) + '</td><td>' + esc(a.action) + '</td><td class="muted">' + esc(a.details || '') + '</td></tr>').join('') + '</tbody></table>';
+}
+function card(num, lbl, cls){ return '<div class="card ' + (cls||'') + '"><div class="num">' + num + '</div><div class="lbl">' + lbl + '</div></div>'; }
+
+// assets
+async function loadAssets(){
+  const q = $('assetSearch').value, cat = $('assetCatFilter').value, st = $('assetStatusFilter').value;
+  const rows = await api('/api/assets?q=' + encodeURIComponent(q) + '&category=' + cat + '&status=' + st);
+  $('assetRows').innerHTML = rows.map(a =>
+    '<tr><td><b>' + esc(a.asset_tag) + '</b></td><td>' + esc(a.name) + '<br><span class="muted">' + esc(a.brand || '') + ' ' + esc(a.model || '') + '</span></td>' +
+    '<td>' + badge('b-' + a.category, a.category) + '</td><td>' + esc(a.purchase_date) + '</td><td>' + inr(a.purchase_cost) + '</td>' +
+    '<td>' + badge(a.status, a.status.replace('_',' ')) + '</td><td>' + esc(a.assigned_to || '—') + '</td><td>' + esc(a.condition) + '</td>' +
+    '<td><button class="ghost" onclick="editAsset(' + a.id + ')">Edit</button> <button class="danger" onclick="deleteAsset(' + a.id + ')">Delete</button></td></tr>').join('') || '<tr><td colspan="9" class="muted">No assets match.</td></tr>';
+}
+function assetPayload(){
+  return { asset_tag:$('af-tag').value.trim(), name:$('af-name').value.trim(), category:$('af-cat').value,
+    brand:$('af-brand').value.trim() || null, model:$('af-model').value.trim() || null, serial_no:$('af-serial').value.trim() || null,
+    purchase_date:$('af-pdate').value, purchase_cost:Number($('af-cost').value || 0), status:$('af-status').value,
+    location:$('af-loc').value.trim() || null, usage_hours:Number($('af-hours').value || 0), condition:$('af-cond').value,
+    notes:$('af-notes').value.trim() || null };
+}
+async function saveAsset(){
+  try {
+    const id = $('af-id').value;
+    if(id){ await api('/api/assets/' + id, 'PUT', assetPayload()); toast('Asset updated'); }
+    else { await api('/api/assets', 'POST', assetPayload()); toast('Asset added'); }
+    resetAssetForm(); loadAssets(); loadDashboard();
+  } catch(e){ toast(e.message, true); }
+}
+async function editAsset(id){
+  const a = await api('/api/assets/' + id);
+  $('af-id').value = a.id; $('af-tag').value = a.asset_tag; $('af-name').value = a.name; $('af-cat').value = a.category;
+  $('af-brand').value = a.brand || ''; $('af-model').value = a.model || ''; $('af-serial').value = a.serial_no || '';
+  $('af-pdate').value = a.purchase_date; $('af-cost').value = a.purchase_cost; $('af-status').value = a.status;
+  $('af-loc').value = a.location || ''; $('af-hours').value = a.usage_hours; $('af-cond').value = a.condition; $('af-notes').value = a.notes || '';
+  $('assetFormTitle').textContent = 'Edit asset — ' + a.asset_tag;
+  window.scrollTo({top:0, behavior:'smooth'});
+}
+async function deleteAsset(id){
+  if(!confirm('Delete this asset?')) return;
+  try { await api('/api/assets/' + id, 'DELETE'); toast('Asset deleted'); loadAssets(); loadDashboard(); }
+  catch(e){ toast(e.message, true); }
+}
+function resetAssetForm(){
+  $('assetForm').reset(); $('af-id').value = ''; $('assetFormTitle').textContent = 'Add asset';
+  $('af-pdate').value = todayISO();
+}
+
+// employees
+async function loadEmployees(){
+  const rows = await api('/api/employees');
+  $('empRows').innerHTML = rows.map(e =>
+    '<tr><td><b>' + esc(e.name) + '</b></td><td>' + esc(e.email) + '</td><td>' + esc(e.department) + '</td><td>' + esc(e.role || '') + '</td><td>' + esc(e.phone || '') + '</td><td>' + esc(e.joined_date) + '</td>' +
+    '<td><button class="danger" onclick="deleteEmployee(' + e.id + ')">Delete</button></td></tr>').join('');
+}
+async function saveEmployee(){
+  try {
+    await api('/api/employees', 'POST', { name:$('ef-name').value.trim(), email:$('ef-email').value.trim(),
+      department:$('ef-dept').value.trim(), role:$('ef-role').value.trim() || null, phone:$('ef-phone').value.trim() || null,
+      joined_date:$('ef-joined').value });
+    toast('Employee added'); $('empForm').reset(); loadEmployees(); loadDashboard();
+  } catch(e){ toast(e.message, true); }
+}
+async function deleteEmployee(id){
+  if(!confirm('Delete this employee?')) return;
+  try { await api('/api/employees/' + id, 'DELETE'); toast('Employee deleted'); loadEmployees(); }
+  catch(e){ toast(e.message, true); }
+}
+
+// assignments & returns
+async function loadAssignmentsTab(){
+  const [avail, emps] = await Promise.all([api('/api/assets?status=available'), api('/api/employees')]);
+  $('as-asset').innerHTML = avail.map(a => '<option value="' + a.id + '">' + esc(a.asset_tag) + ' — ' + esc(a.name) + '</option>').join('') || '<option value="">No available assets</option>';
+  $('as-emp').innerHTML = emps.map(e => '<option value="' + e.id + '">' + esc(e.name) + ' (' + esc(e.department) + ')</option>').join('');
+  $('as-date').value = todayISO();
+  const active = await api('/api/assignments?status=active');
+  $('activeAssignRows').innerHTML = active.map(a =>
+    '<tr><td>' + esc(a.asset_tag) + ' — ' + esc(a.asset_name) + '</td><td>' + esc(a.employee_name) + '</td><td>' + esc(a.assigned_date) + '</td><td>' + esc(a.expected_return_date || '—') + '</td>' +
+    '<td>' + (a.overdue ? badge('overdue','overdue') : badge('assigned','active')) + '</td>' +
+    '<td><button class="primary" style="padding:6px 12px" onclick="returnAsset(' + a.id + ')">Return</button></td></tr>').join('') || '<tr><td colspan="6" class="muted">No active assignments.</td></tr>';
+  const rets = await api('/api/returns');
+  $('returnRows').innerHTML = rets.map(r =>
+    '<tr><td>' + esc(r.asset_tag) + ' — ' + esc(r.asset_name) + '</td><td>' + esc(r.employee_name) + '</td><td>' + esc(r.return_date) + '</td><td>' + badge(r.condition_on_return === 'damaged' ? 'high' : 'low', r.condition_on_return) + '</td><td class="muted">' + esc(r.notes || '') + '</td></tr>').join('') || '<tr><td colspan="5" class="muted">No returns yet.</td></tr>';
+}
+async function saveAssignment(){
+  try {
+    await api('/api/assignments', 'POST', { asset_id:Number($('as-asset').value), employee_id:Number($('as-emp').value),
+      assigned_date:$('as-date').value, expected_return_date:$('as-return').value || null, notes:$('as-notes').value.trim() || null });
+    toast('Asset assigned'); loadAssignmentsTab(); loadDashboard();
+  } catch(e){ toast(e.message, true); }
+}
+async function returnAsset(id){
+  const cond = prompt('Condition on return? (excellent / good / fair / poor / damaged)', 'good');
+  if(cond === null) return;
+  try {
+    const r = await api('/api/assignments/' + id + '/return', 'POST', { condition_on_return: cond.trim().toLowerCase() });
+    toast('Returned. Asset is now ' + r.asset_status.replace('_',' '));
+    loadAssignmentsTab(); loadDashboard();
+  } catch(e){ toast(e.message, true); }
+}
+
+// maintenance
+async function loadMaintenanceTab(){
+  const assets = await api('/api/assets');
+  $('mf-asset').innerHTML = assets.map(a => '<option value="' + a.id + '">' + esc(a.asset_tag) + ' — ' + esc(a.name) + '</option>').join('');
+  $('mf-date').value = todayISO();
+  const rows = await api('/api/maintenance');
+  $('maintRows').innerHTML = rows.map(m =>
+    '<tr><td>' + esc(m.asset_tag) + ' — ' + esc(m.asset_name) + '</td><td>' + esc(m.maintenance_date) + '</td><td>' + badge(m.maintenance_type === 'preventive' ? 'low' : 'medium', m.maintenance_type) + '</td><td>' + esc(m.description) + '</td><td>' + inr(m.cost) + '</td><td>' + esc(m.performed_by || '') + '</td><td>' + esc(m.next_due_date || '—') + '</td></tr>').join('') || '<tr><td colspan="7" class="muted">No maintenance logged yet.</td></tr>';
+}
+async function saveMaintenance(){
+  try {
+    await api('/api/maintenance', 'POST', { asset_id:Number($('mf-asset').value), maintenance_date:$('mf-date').value,
+      maintenance_type:$('mf-type').value, description:$('mf-desc').value.trim(), cost:Number($('mf-cost').value || 0),
+      performed_by:$('mf-by').value.trim() || null, next_due_date:$('mf-next').value || null });
+    toast('Maintenance logged'); loadMaintenanceTab(); loadDashboard();
+  } catch(e){ toast(e.message, true); }
+}
+
+// predictions
+async function loadPredictions(){
+  const { predictions, model } = await api('/api/predictions');
+  $('modelInfo').textContent = 'Model: ' + model.method.replace('_',' ') + ', trained on ' + model.training_samples + ' service intervals' +
+    (model.training_mae_days !== null ? ', mean error ±' + model.training_mae_days + ' days.' : '.');
+  $('predRows').innerHTML = predictions.map(p =>
+    '<tr><td><b>' + esc(p.asset_tag) + '</b> — ' + esc(p.name) + '</td><td>' + esc(p.category) + '</td><td>' + esc(p.last_maintenance_date || 'never') + '</td><td>' + esc(p.predicted_next_maintenance) + '</td>' +
+    '<td>' + (p.days_remaining < 0 ? '<b style="color:var(--red)">' + p.days_remaining + ' (overdue)</b>' : p.days_remaining) + '</td>' +
+    '<td>' + badge(p.risk_level, p.risk_level) + '</td><td>' + p.risk_score + '</td></tr>').join('');
+}
+
+// audit
+async function loadAudit(){
+  const rows = await api('/api/audit?entity_type=' + $('auditFilter').value + '&limit=200');
+  $('auditRows').innerHTML = rows.map(a =>
+    '<tr><td>' + esc(a.created_at) + '</td><td>' + esc(a.entity_type) + ' #' + (a.entity_id ?? '') + '</td><td>' + esc(a.action) + '</td><td class="muted">' + esc(a.details || '') + '</td></tr>').join('') || '<tr><td colspan="4" class="muted">No audit entries.</td></tr>';
+}
+
+// init
+$('clock').textContent = new Date().toLocaleString('en-IN', { dateStyle:'medium', timeStyle:'short' });
+$('af-pdate').value = todayISO();
+loadDashboard(); loadAssets(); loadEmployees();
+</script>
+</body>
+</html>
